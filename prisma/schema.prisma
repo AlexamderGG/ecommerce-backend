@@ -1,0 +1,197 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMERACIONES ---
+
+enum RoleName {
+  ADMIN
+  GERENTE
+  CLIENTE
+}
+
+enum OrderStatus {
+  PENDING   // Pendiente de pago
+  PAID      // Pagado
+  SHIPPED   // Enviado
+  DELIVERED // Entregado
+  CANCELLED // Cancelado (para tasa de reembolso)
+  REFUNDED  // Devuelto (para tasa de reembolso)
+}
+
+// --- MODELOS PRINCIPALES ---
+
+model Role {
+  id        String   @id @default(uuid())
+  name      RoleName @unique
+  users     User[]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("roles")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash") // Almacenado con Bcrypt
+  address      String?  @map("address")  // el ? significa que puede ser nulo temporalmente
+  roleId       String   @map("role_id")
+  role         Role     @relation(fields: [roleId], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relaciones
+  wishlists Wishlist[]
+  reviews   Review[]
+  carts     Cart[]
+  orders    Order[]
+
+  @@map("users")
+}
+
+// --- CATÁLOGO Y PRODUCTOS ---
+
+model Brand {
+  id       String    @id @default(uuid())
+  name     String    @unique // Ej: "Samsung", "Nescafé"
+  products Product[]
+
+  @@map("brands")
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique // Ej: "Celulares", "Café"
+  description String?
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  price       Decimal   @db.Decimal(10, 2) // Precio de venta al público (S/)
+  cost        Decimal   @db.Decimal(10, 2) // Costo de adquisición (Para gráfica Ingresos vs Costos)
+  stock       Int       // Para validar alertas de stock bajo e insuficiente en carrito
+  sku         String    @unique            // Visible en las tarjetas del catálogo
+  tags        String[]                     // Arreglo de strings: ["Tostado medio", "Importado"]
+  imageUrl    String?   @map("image_url") 
+  
+  categoryId  String    @map("category_id")
+  category    Category  @relation(fields: [categoryId], references: [id])
+  brandId     String    @map("brand_id")
+  brand       Brand     @relation(fields: [brandId], references: [id])
+  
+  isActive    Boolean   @default(true) @map("is_active") 
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relaciones
+  wishlists  Wishlist[]
+  reviews    Review[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+// --- INTERACCIONES DEL CLIENTE ---
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, productId]) // Un usuario no puede añadir el mismo producto 2 veces a deseos
+  @@map("wishlists")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating    Int      // 1 a 5 estrellas
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("reviews")
+}
+
+// --- CARRITO DE COMPRAS (Para calcular Tasa de Abandono) ---
+
+model Cart {
+  id          String     @id @default(uuid())
+  userId      String     @map("user_id")
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isAbandoned Boolean    @default(false) @map("is_abandoned") // Se marca true si pasa X tiempo sin comprar
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(uuid())
+  cartId    String  @map("cart_id")
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+
+  @@map("cart_items")
+}
+
+// --- ÓRDENES Y CHECKOUT ---
+
+model Order {
+  id             String      @id @default(uuid())
+  userId         String      @map("user_id")
+  user           User        @relation(fields: [userId], references: [id])
+  
+  status         OrderStatus @default(PENDING)
+  paymentMethod  String?     @map("payment_method") // Ej: "Tarjeta de crédito", "Yape", "Efectivo"
+  
+  // Desglose financiero (Imagen 3)
+  subtotal       Decimal     @db.Decimal(10, 2)
+  taxPercentage  Decimal     @default(18) @db.Decimal(5, 2) @map("tax_percentage") // IGV 18%
+  taxAmount      Decimal     @db.Decimal(10, 2) @map("tax_amount")
+  shippingCost   Decimal     @default(0) @db.Decimal(10, 2) @map("shipping_cost") // "Gratis" = 0
+  totalAmount    Decimal     @db.Decimal(10, 2) @map("total_amount")
+  
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String  @map("order_id")
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2) @map("unit_price") // Precio al que se vendió en su momento
+  unitCost  Decimal @db.Decimal(10, 2) @map("unit_cost")  // Costo al que se compró en su momento (VITAL para rentabilidad)
+
+  @@map("order_items")
+}
