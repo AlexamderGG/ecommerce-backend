@@ -1,5 +1,7 @@
+// Borra el import de arriba y usa este en su lugar al principio del archivo:
+import { PrismaClient } from '@prisma/client';
+declare const prisma: PrismaClient;
 import bcrypt from 'bcryptjs';
-import prisma from '../../config/database';
 import { generateToken } from '../../config/jwt';
 
 export const loginService = async (email: string, password: string) => {

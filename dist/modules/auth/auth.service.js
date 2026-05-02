@@ -5,11 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerService = exports.loginService = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const database_1 = __importDefault(require("../../config/database"));
 const jwt_1 = require("../../config/jwt");
 const loginService = async (email, password) => {
     // 1. Buscar al usuario por email y traer su rol
-    const user = await database_1.default.user.findUnique({
+    const user = await prisma.user.findUnique({
         where: { email },
         include: { role: true },
     });
@@ -36,15 +35,15 @@ const loginService = async (email, password) => {
 };
 exports.loginService = loginService;
 const registerService = async (name, email, password) => {
-    const userExists = await database_1.default.user.findUnique({ where: { email } });
+    const userExists = await prisma.user.findUnique({ where: { email } });
     if (userExists)
         throw new Error('El correo ya está registrado');
     const hashedPassword = await bcryptjs_1.default.hash(password, 10);
     // Buscamos el rol de CLIENTE
-    const clientRole = await database_1.default.role.findUnique({ where: { name: 'CLIENTE' } });
+    const clientRole = await prisma.role.findUnique({ where: { name: 'CLIENTE' } });
     if (!clientRole)
         throw new Error('Error de configuración: Rol CLIENTE no encontrado');
-    const newUser = await database_1.default.user.create({
+    const newUser = await prisma.user.create({
         data: { name, email, passwordHash: hashedPassword, roleId: clientRole.id },
         select: { id: true, name: true, email: true, role: { select: { name: true } } }
     });

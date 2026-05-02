@@ -1,4 +1,6 @@
-import prisma from '../../config/database';
+// Borra el import de arriba y usa este en su lugar al principio del archivo:
+import { PrismaClient } from '@prisma/client';
+declare const prisma: PrismaClient;
 
 // Traer perfil del usuario (para cargar su dirección)
 export const getUserProfileService = async (userId: string) => {

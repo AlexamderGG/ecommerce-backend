@@ -1,12 +1,8 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createReviewService = exports.getReviewsByProductService = void 0;
-const database_1 = __importDefault(require("../../config/database"));
 const getReviewsByProductService = async (productId) => {
-    return await database_1.default.review.findMany({
+    return await prisma.review.findMany({
         where: { productId },
         include: {
             user: { select: { name: true } } // Traemos solo el nombre del usuario
@@ -20,7 +16,7 @@ const createReviewService = async (userId, productId, rating, comment) => {
         throw new Error('La calificación debe ser entre 1 y 5');
     if (!comment.trim())
         throw new Error('El comentario no puede estar vacío');
-    return await database_1.default.review.create({
+    return await prisma.review.create({
         data: {
             userId,
             productId,

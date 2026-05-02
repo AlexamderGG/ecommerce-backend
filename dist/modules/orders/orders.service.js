@@ -1,20 +1,16 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getOrdersByUserService = exports.createOrderService = void 0;
-const database_1 = __importDefault(require("../../config/database"));
 const createOrderService = async (payload) => {
     const { userId, items, shippingCost = 0 } = payload;
     // Cerramos el carrito abierto para que no se considere "abandonado" ---
-    await database_1.default.cart.updateMany({
+    await prisma.cart.updateMany({
         where: { userId, isAbandoned: false },
         data: { isAbandoned: false } // Lo dejamos false, pero podrías cambiar el status si quisieras
     });
     // 1. Obtener los productos de la BD para saber sus precios actuales y stock
     const productIds = items.map(item => item.productId);
-    const products = await database_1.default.product.findMany({ where: { id: { in: productIds } } });
+    const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
     if (products.length !== items.length) {
         throw new Error('Uno o más productos no existen.');
     }
@@ -43,7 +39,7 @@ const createOrderService = async (payload) => {
     //console.log("⏳ RECIBIDO EN SERVICE - items:", JSON.stringify(items));
     // --------------------
     // 3. Crear la orden en la BD dentro de una transacción (por si falla algo, no deja datos basura)
-    const order = await database_1.default.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx) => {
         const newOrder = await tx.order.create({
             data: {
                 userId,
@@ -71,7 +67,7 @@ const createOrderService = async (payload) => {
 };
 exports.createOrderService = createOrderService;
 const getOrdersByUserService = async (userId) => {
-    return await database_1.default.order.findMany({
+    return await prisma.order.findMany({
         where: { userId },
         include: {
             items: {

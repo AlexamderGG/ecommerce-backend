@@ -1,27 +1,23 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getIncomeVsCostData = exports.getDashboardMetrics = void 0;
-const database_1 = __importDefault(require("../../config/database"));
 const getDashboardMetrics = async () => {
     // 1. Ventas y Órdenes (Solo las pagadas)
-    const orders = await database_1.default.order.findMany({ where: { status: 'PAID' } });
+    const orders = await prisma.order.findMany({ where: { status: 'PAID' } });
     const totalSales = orders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
     const totalOrders = orders.length;
     const averageOrder = totalOrders > 0 ? totalSales / totalOrders : 0;
     // 2. Carritos creados y Tasa de Abandono
-    const totalCarts = await database_1.default.cart.count();
-    const abandonedCarts = await database_1.default.cart.count({ where: { isAbandoned: true } });
+    const totalCarts = await prisma.cart.count();
+    const abandonedCarts = await prisma.cart.count({ where: { isAbandoned: true } });
     const abandonedRate = totalCarts > 0 ? (abandonedCarts / totalCarts) * 100 : 0;
     const conversionRate = totalCarts > 0 ? ((totalOrders / totalCarts) * 100) : 0;
     // 3. Productos con bajo stock (menos de 15 unidades)
-    const lowStockCount = await database_1.default.product.count({ where: { stock: { lt: 15 } } });
+    const lowStockCount = await prisma.product.count({ where: { stock: { lt: 15 } } });
     // 4. Reembolsos de 30 días (órdenes canceladas/devueltas)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const refunds = await database_1.default.order.findMany({
+    const refunds = await prisma.order.findMany({
         where: { status: { in: ['CANCELLED', 'REFUNDED'] }, createdAt: { gte: thirtyDaysAgo } }
     });
     const refundAmount = refunds.reduce((sum, o) => sum + Number(o.totalAmount), 0);
@@ -39,7 +35,7 @@ const getDashboardMetrics = async () => {
 exports.getDashboardMetrics = getDashboardMetrics;
 const getIncomeVsCostData = async () => {
     // Nombres de columnas físicos de PostgreSQL (con guion bajo)
-    const data = await database_1.default.$queryRaw `
+    const data = await prisma.$queryRaw `
     SELECT 
       TO_CHAR(o."created_at", 'YYYY-MM') as month,
       SUM(oi.quantity * oi."unit_price") as income,

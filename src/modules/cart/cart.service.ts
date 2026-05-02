@@ -1,4 +1,6 @@
-import prisma from '../../config/database';
+// Borra el import de arriba y usa este en su lugar al principio del archivo:
+import { PrismaClient } from '@prisma/client';
+declare const prisma: PrismaClient;
 
 // OBTENER el carrito de la BD cuando el usuario entra desde otro dispositivo
 export const getCartFromDBService = async (userId: string) => {

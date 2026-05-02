@@ -1,4 +1,6 @@
-import prisma from '../../config/database';
+// Borra el import de arriba y usa este en su lugar al principio del archivo:
+import { PrismaClient } from '@prisma/client';
+declare const prisma: PrismaClient;
 
 export const getDashboardMetrics = async () => {
   // 1. Ventas y Órdenes (Solo las pagadas)
