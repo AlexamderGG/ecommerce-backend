@@ -2,23 +2,36 @@ import puppeteer from 'puppeteer';
 
 // Función genérica para convertir HTML a PDF
 export const generatePDF = async (htmlContent: string, fileName: string) => {
-  const browser = await puppeteer.launch({ headless: true }); // headless: 'new' es más rápido
-  const page = await browser.newPage();
-  
-  // Cargamos el HTML
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-  
-  // Generamos el PDF con configuración de página
-  const pdfBuffer = await page.pdf({
-    format: 'A4',
-    printBackground: true,
-    margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' },
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage', // Vital para evitar crashes por falta de memoria RAM
+      '--disable-gpu'            // Mejora la estabilidad en entornos sin tarjeta gráfica
+    ],
+    // Si usas el buildpack de Puppeteer, esta variable suele ser necesaria
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined 
   });
-
-  await browser.close();
-  
-  // Retornamos el buffer del PDF y sugerimos el nombre del archivo
-  return { buffer: pdfBuffer, fileName };
+  try {
+      const page = await browser.newPage();
+      
+      // Usamos 'domcontentloaded' en lugar de 'networkidle0' para que no espere 
+      // peticiones de red externas innecesarias
+      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+      
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' },
+      });
+      return { buffer: pdfBuffer, fileName };
+    } catch (error) {
+      console.error("Error al generar PDF:", error);
+      throw error;
+    } finally {
+      await browser.close();
+    }
 };
 
 // --- PLANTILLAS HTML ---
