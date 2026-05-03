@@ -1,24 +1,19 @@
 import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
 
 export const generatePDF = async (htmlContent: string, fileName: string) => {
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // Configuración base para el navegador
-  const launchOptions = isProduction
-    ? {
-        args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
-        executablePath: await chromium.executablePath(),
-        headless: true,
-      }
-    : {
-        // CONFIGURACIÓN PARA TU WINDOWS LOCAL
-        // Asegúrate de tener instalado Chrome o Edge
-        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 
-        headless: true,
-      };
+  // Importamos chromium solo si estamos en producción (Render/Linux)
+  // Usamos 'require' dentro de la función para que TypeScript no lo valide estáticamente
+  const chromium = isProduction ? require('@sparticuz/chromium') : null;
 
-  const browser = await puppeteer.launch(launchOptions as any);
+  const browser = await puppeteer.launch({
+    args: isProduction ? [...chromium.args, '--no-sandbox'] : [],
+    executablePath: isProduction 
+       ? await chromium.executablePath() 
+       : 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Ajusta si tu Chrome está en otro lado
+    headless: true,
+  });
 
   try {
     const page = await browser.newPage();
