@@ -9,6 +9,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
+    "noImplicitAny": false,
     "typeRoots": ["./node_modules/@types"]
   },
   "include": ["src/**/*", "prisma/**/*"],
