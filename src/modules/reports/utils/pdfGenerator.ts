@@ -1,37 +1,34 @@
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 
-// Función genérica para convertir HTML a PDF
 export const generatePDF = async (htmlContent: string, fileName: string) => {
+  // Obtenemos la ruta del ejecutable de Chrome
+  const executablePath = await chromium.executablePath();
+
   const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage', // Vital para evitar crashes por falta de memoria RAM
-      '--disable-gpu'            // Mejora la estabilidad en entornos sin tarjeta gráfica
-    ],
-    // Si usas el buildpack de Puppeteer, esta variable suele ser necesaria
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined 
+    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+    executablePath: executablePath,
+    // Eliminamos .headless y .defaultViewport para evitar errores de tipo
+    headless: true, 
   });
+
   try {
-      const page = await browser.newPage();
-      
-      // Usamos 'domcontentloaded' en lugar de 'networkidle0' para que no espere 
-      // peticiones de red externas innecesarias
-      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-      
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' },
-      });
-      return { buffer: pdfBuffer, fileName };
-    } catch (error) {
-      console.error("Error al generar PDF:", error);
-      throw error;
-    } finally {
-      await browser.close();
-    }
+    const page = await browser.newPage();
+    // Establecemos el tamaño de pantalla manualmente si es necesario
+    await page.setViewport({ width: 1280, height: 800 });
+    
+    await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+    
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' },
+    });
+
+    return { buffer: pdfBuffer, fileName };
+  } finally {
+    await browser.close();
+  }
 };
 
 // --- PLANTILLAS HTML ---
