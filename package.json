@@ -10,9 +10,9 @@
     "seed": "ts-node prisma/seed.ts",
     "postinstall": "prisma generate"
   },
-
   "dependencies": {
     "@prisma/client": "^6.4.1",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -20,7 +20,6 @@
     "puppeteer": "^24.42.0"
   },
   "devDependencies": {
-    "bcryptjs": "^2.4.3",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
