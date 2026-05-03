@@ -13,6 +13,7 @@ export const generatePDF = async (htmlContent: string, fileName: string) => {
        ? await chromium.executablePath() 
        : 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Ajusta si tu Chrome está en otro lado
     headless: true,
+    dumpio: true,
   });
 
   try {
